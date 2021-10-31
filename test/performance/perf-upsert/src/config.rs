@@ -7,63 +7,61 @@
 // the Business Source License, use of this software will be governed
 // by the Apache License, Version 2.0.
 
-use structopt::StructOpt;
-
 pub static KAFKA_SOURCE_NAME: &str = "perf_upsert_source";
 
-#[derive(Clone, Debug, StructOpt)]
+#[derive(Clone, Debug, clap::Parser)]
 pub struct Args {
     /// The materialized host
-    #[structopt(long, default_value = "localhost")]
+    #[clap(long, default_value = "localhost")]
     pub materialized_host: String,
 
-    #[structopt(long, default_value = "6875")]
+    #[clap(long, default_value = "6875")]
     pub materialized_port: u16,
 
     /// The total number of messages to create
-    #[structopt(long, default_value = "100000000")]
+    #[clap(long, default_value = "100000000")]
     pub message_count: usize,
 
     /// Number of messages to send per second
-    #[structopt(long, default_value = "8000")]
+    #[clap(long, default_value = "8000")]
     pub messages_per_second: usize,
 
     /// The kafka host
-    #[structopt(long, default_value = "localhost")]
+    #[clap(long, default_value = "localhost")]
     pub kafka_host: String,
 
     /// The kafka port
-    #[structopt(long, default_value = "9092")]
+    #[clap(long, default_value = "9092")]
     pub kafka_port: u16,
 
-    #[structopt(long, default_value = "perf-upsert")]
+    #[clap(long, default_value = "perf-upsert")]
     pub kafka_topic: String,
 
     /// Whether or not to delete the sources and views before starting
-    #[structopt(long)]
+    #[clap(long)]
     pub preserve_source: bool,
 
     /// Whether or not to run the test with source persistence enabled
-    #[structopt(long)]
+    #[clap(long)]
     pub enable_persistence: bool,
 
     /// Whether or not the perf test should create a new source topic.
-    #[structopt(
+    #[clap(
         long,
         requires_all(&["replication-factor", "partitions"])
     )]
     pub create_topic: bool,
 
     /// Number of partitions for the source topic. Has to be specified if --create-topic is true.
-    #[structopt(long, requires("create-topic"))]
+    #[clap(long, requires("create-topic"))]
     partitions: Option<i32>,
 
     /// Replication factor for the source topic. Has to be specified if --create-topic is true.
-    #[structopt(long, requires("create-topic"))]
+    #[clap(long, requires("create-topic"))]
     replication_factor: Option<i32>,
 
     /// Number of times we peek the source data
-    #[structopt(long, default_value = "100")]
+    #[clap(long, default_value = "100")]
     pub num_peeks: usize,
 }
 

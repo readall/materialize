@@ -13,7 +13,6 @@ use std::time::Duration;
 
 use md5::{Digest, Md5};
 use rand::Rng;
-use structopt::StructOpt;
 
 use ore::retry::Retry;
 use test_util::{generator, kafka, mz_client};
@@ -28,7 +27,7 @@ async fn main() {
 
 async fn run() -> Result<(), anyhow::Error> {
     let timer = std::time::Instant::now();
-    let args = Args::from_args();
+    let args: Args = ore::cli::parse_args();
     env_logger::init();
 
     match args.test {
@@ -314,33 +313,33 @@ impl str::FromStr for Tests {
     }
 }
 
-#[derive(Clone, Debug, StructOpt)]
+#[derive(Clone, Debug, clap::Parser)]
 pub struct Args {
     /// The specific types of chaos test to run
-    #[structopt(long)]
+    #[clap(long)]
     pub test: Tests,
 
     /// The materialized host
-    #[structopt(long, default_value = "materialized")]
+    #[clap(long, default_value = "materialized")]
     pub materialized_host: String,
 
     /// The materialized port
-    #[structopt(long, default_value = "6875")]
+    #[clap(long, default_value = "6875")]
     pub materialized_port: u16,
 
     /// The Kafka URL
-    #[structopt(long, default_value = "kafka:9092")]
+    #[clap(long, default_value = "kafka:9092")]
     pub kafka_url: String,
 
     /// Number of Kafka partitions
-    #[structopt(long)]
+    #[clap(long)]
     pub kafka_partitions: Option<i32>,
 
     /// The total number of records to create
-    #[structopt(long)]
+    #[clap(long)]
     pub message_count: Option<usize>,
 
     /// The number of seconds to run
-    #[structopt(long)]
+    #[clap(long)]
     pub run_seconds: Option<u64>,
 }

@@ -14,58 +14,56 @@ use std::env;
 use std::fs;
 use std::time::Duration;
 
+use anyhow::anyhow;
 use lazy_static::lazy_static;
 use log::{debug, info};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use structopt::StructOpt;
-
-use crate::{Error, Result};
 
 static DEFAULT_CONFIG: &str = include_str!("../config.toml");
 
 /// Measures Materialize's query latency.
-#[derive(Debug, StructOpt)]
+#[derive(Debug, clap::Parser)]
 pub struct Args {
     /// Config file to use.
     ///
     /// If unspecified, uses the default, built-in config that includes many
     /// CH-benCHmark queries.
-    #[structopt(short = "c", long, value_name = "FILE")]
+    #[clap(short = 'c', long, value_name = "FILE")]
     pub config_file: Option<String>,
     /// Limit to these query names from config file.
-    #[structopt(short = "q", long, value_name = "QUERIES")]
+    #[clap(short = 'q', long, value_name = "QUERIES")]
     pub queries: Option<String>,
     /// URL of materialized instance to collect metrics from.
-    #[structopt(
+    #[clap(
         long,
         default_value = "postgres://materialize@materialized:6875/materialize",
         value_name = "URL"
     )]
     pub materialized_url: String,
     /// Run the initalization of sources and views, but don't start peeking.
-    #[structopt(long)]
+    #[clap(long)]
     pub only_initialize: bool,
     /// How long to spend trying to initialize.
-    #[structopt(long, parse(try_from_str = repr::util::parse_duration), default_value = "60s")]
+    #[clap(long, parse(try_from_str = repr::util::parse_duration), default_value = "60s")]
     pub init_timeout: Duration,
     /// Print the names of the available queries in the config file.
-    #[structopt(long)]
+    #[clap(long)]
     pub help_config: bool,
     /// How long to wait before connecting to materialized.
-    #[structopt(long, default_value = "0")]
+    #[clap(long, default_value = "0")]
     pub warmup_seconds: u32,
     /// How long to run before shutting down.
     ///
     /// A value of 0 never shuts down.
-    #[structopt(long, default_value = "0")]
+    #[clap(long, default_value = "0")]
     pub run_seconds: u32,
     /// Write out the parsed contents of the config file
-    #[structopt(long)]
+    #[clap(long)]
     pub write_config: Option<String>,
 }
 
-pub fn load_config(config_path: Option<&str>, cli_queries: Option<&str>) -> Result<Config> {
+pub fn load_config(config_path: Option<&str>, cli_queries: Option<&str>) -> Result<Config, anyhow::Error> {
     let conf = load_raw_config(config_path);
 
     // Get everything into the normalized QueryGroup representation
@@ -207,13 +205,13 @@ impl Config {
 }
 
 impl TryFrom<RawConfig> for Config {
-    type Error = Error;
+    type Error = anyhow::Error;
 
     /// Convert the toml into the nicer representation
     ///
     /// This performs the grouping and normalization from [`Query`]s and [`GroupConfig`]s
     /// into [`QueryGroup`]s
-    fn try_from(conf: RawConfig) -> Result<Config> {
+    fn try_from(conf: RawConfig) -> Result<Config, anyhow::Error> {
         let default = conf.default_query;
         let mut queries_by_name = HashMap::new();
         let queries: Vec<_> = conf
@@ -234,7 +232,7 @@ impl TryFrom<RawConfig> for Config {
             .into_iter()
             .map(|g| QueryGroup::from_group_config(g, &queries_by_name))
             .chain(queries.iter().cloned().map(Ok))
-            .collect::<Result<Vec<_>>>()?;
+            .collect::<Result<Vec<_>, _>>()?;
 
         Ok(Config {
             groups,
@@ -272,7 +270,7 @@ impl QueryGroup {
         }
     }
 
-    fn from_group_config(g: GroupConfig, queries: &HashMap<String, Query>) -> Result<QueryGroup> {
+    fn from_group_config(g: GroupConfig, queries: &HashMap<String, Query>) -> Result<QueryGroup, anyhow::Error> {
         let g_name = g.name.clone();
         Ok(QueryGroup {
             name: g_name.clone(),
@@ -283,11 +281,9 @@ impl QueryGroup {
                 .into_iter()
                 .map(|q_name| {
                     let q = queries.get(&*q_name).cloned();
-                    q.ok_or_else(|| {
-                        format!("Unable to get query for group {}: {}", g_name, q_name).into()
-                    })
+                    q.ok_or_else(|| anyhow!("Unable to get query for group {}: {}", g_name, q_name))
                 })
-                .collect::<Result<_>>()?,
+                .collect::<Result<_, _>>()?,
             enabled: g.enabled,
         })
     }

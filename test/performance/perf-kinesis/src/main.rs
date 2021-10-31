@@ -30,7 +30,6 @@
 use anyhow::Context;
 use rand::Rng;
 use rusoto_core::Region;
-use structopt::StructOpt;
 
 use aws_util::aws;
 use test_util::mz_client;
@@ -48,7 +47,7 @@ async fn main() {
 
 async fn run() -> Result<(), anyhow::Error> {
     let timer = std::time::Instant::now();
-    let args = Args::from_args();
+    let args: Args = ore::cli::parse_args();
     env_logger::init();
 
     // Initialize and log test variables.
@@ -114,33 +113,33 @@ async fn run() -> Result<(), anyhow::Error> {
     Ok(())
 }
 
-#[derive(Clone, Debug, StructOpt)]
+#[derive(Clone, Debug, clap::Parser)]
 pub struct Args {
     /// The materialized host
-    #[structopt(long, default_value = "materialized")]
+    #[clap(long, default_value = "materialized")]
     pub materialized_host: String,
 
     /// The materialized port
-    #[structopt(long, default_value = "6875")]
+    #[clap(long, default_value = "6875")]
     pub materialized_port: u16,
 
     /// The AWS region of the stream
-    #[structopt(long, default_value = "us-east-2")]
+    #[clap(long, default_value = "us-east-2")]
     pub aws_region: String,
 
     /// The number of shards in the Kinesis stream
-    #[structopt(long, default_value = "50")]
+    #[clap(long, default_value = "50")]
     pub shard_count: i64,
 
     /// The total number of records to create
-    #[structopt(long, default_value = "150000000")]
+    #[clap(long, default_value = "150000000")]
     pub total_records: u64,
 
     /// The number of records to put to the Kinesis stream per second
-    #[structopt(long, default_value = "2000")]
+    #[clap(long, default_value = "2000")]
     pub records_per_second: u64,
 
     /// The name of the stream to use, will always have a nonce
-    #[structopt(long, default_value = "testdrive-perf-kinesis")]
+    #[clap(long, default_value = "testdrive-perf-kinesis")]
     pub stream_prefix: String,
 }

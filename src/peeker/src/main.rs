@@ -15,33 +15,27 @@ use std::process;
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
+use anyhow::{anyhow, bail};
 use chrono::Utc;
 use env_logger::{Builder as LogBuilder, Env, Target};
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Response, Server};
 use log::{debug, error, info, warn};
-use ore::{
-    metric,
-    metrics::{
-        raw::IntCounterVec as RawIntCounterVec, CounterVecExt, HistogramVecExt, IntCounterVec,
-        MetricsRegistry,
-    },
-};
 use postgres::Client;
 use prometheus::Encoder;
 
+use ore::metrics::{HistogramVec, CounterVecExt, HistogramVecExt, IntCounterVec, MetricsRegistry};
+use ore::metrics::raw::IntCounterVec as RawIntCounterVec;
+use ore::metric;
+
 use crate::args::{Args, Config, QueryGroup, Source};
-use ore::metrics::HistogramVec;
 
 mod args;
 
 static MAX_BACKOFF: Duration = Duration::from_secs(2);
 static METRICS_PORT: u16 = 16875;
 
-type Error = Box<dyn std::error::Error + Send + Sync>;
-type Result<T> = std::result::Result<T, Error>;
-
-fn main() -> Result<()> {
+fn main() -> Result<(), anyhow::Error> {
     ore::panic::set_abort_on_panic();
 
     LogBuilder::from_env(Env::new().filter_or("MZ_LOG_FILTER", "info"))
@@ -225,12 +219,12 @@ fn create_postgres_client(mz_url: &str) -> Client {
     }
 }
 
-fn initialize(args: &Args, config: &Config) -> Result<()> {
+fn initialize(args: &Args, config: &Config) -> Result<(), anyhow::Error> {
     let start = std::time::Instant::now();
     let mut init_result = init_inner(args, config);
     while let Err(e) = init_result {
         if start.elapsed() > args.init_timeout {
-            return Err(format!("unable to initialize: {}", e).into());
+            bail!("unable to initialize: {}", e);
         }
         warn!(
             "init error, retry in 10 seconds ({:?} remaining)",
@@ -242,10 +236,10 @@ fn initialize(args: &Args, config: &Config) -> Result<()> {
     Ok(())
 }
 
-fn init_inner(args: &Args, config: &Config) -> Result<()> {
+fn init_inner(args: &Args, config: &Config) -> Result<(), anyhow::Error> {
     let mut postgres_client = create_postgres_client(&args.materialized_url);
     initialize_sources(&mut postgres_client, &config.sources)
-        .map_err(|e| format!("need to have sources for anything else to work: {}", e))?;
+        .map_err(|e| anyhow!("need to have sources for anything else to work: {}", e))?;
     let mut errors = 0;
     for group in config.queries_in_declaration_order() {
         if !try_initialize(&mut postgres_client, group) {
@@ -255,11 +249,11 @@ fn init_inner(args: &Args, config: &Config) -> Result<()> {
     if errors == 0 {
         Ok(())
     } else {
-        Err(format!("There were {} errors initializing query groups", errors).into())
+        bail!("There were {} errors initializing query groups", errors)
     }
 }
 
-fn initialize_sources(client: &mut Client, sources: &[Source]) -> Result<()> {
+fn initialize_sources(client: &mut Client, sources: &[Source]) -> Result<(), anyhow::Error> {
     let mut failed = false;
     for source in sources {
         let mut still_to_try = source.names.clone();
@@ -319,7 +313,7 @@ fn initialize_sources(client: &mut Client, sources: &[Source]) -> Result<()> {
         }
     }
     if failed {
-        Err("Some sources were not created".into())
+        bail!("Some sources were not created")
     } else {
         Ok(())
     }
@@ -397,7 +391,7 @@ impl Metrics {
     }
 }
 
-async fn serve_metrics(registry: MetricsRegistry) -> Result<()> {
+async fn serve_metrics(registry: MetricsRegistry) -> Result<(), anyhow::Error> {
     info!("serving prometheus metrics on port {}", METRICS_PORT);
     let addr = ([0, 0, 0, 0], METRICS_PORT).into();
 

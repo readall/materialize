@@ -15,85 +15,84 @@ use std::time::Duration;
 use aws_util::aws;
 use rand::{rngs::StdRng, seq::SliceRandom, Rng, SeedableRng};
 use rusoto_credential::{AwsCredentials, ChainProvider, ProvideAwsCredentials};
-use structopt::StructOpt;
 use url::Url;
 
 use testdrive::Config;
 
 /// Integration test driver for Materialize.
-#[derive(StructOpt)]
+#[derive(clap::Parser)]
 struct Args {
     // === Confluent options. ===
     /// Kafka bootstrap address.
-    #[structopt(
+    #[clap(
         long,
         value_name = "ENCRYPTION://HOST:PORT",
         default_value = "localhost:9092"
     )]
     kafka_addr: String,
     /// Kafka configuration option.
-    #[structopt(long, value_name = "KEY=VAL", parse(from_str = parse_kafka_opt))]
+    #[clap(long, value_name = "KEY=VAL", parse(from_str = parse_kafka_opt))]
     kafka_option: Vec<(String, String)>,
     /// Schema registry URL.
-    #[structopt(long, value_name = "URL", default_value = "http://localhost:8081")]
+    #[clap(long, value_name = "URL", default_value = "http://localhost:8081")]
     schema_registry_url: Url,
 
     // === TLS options. ===
     /// Path to TLS certificate keystore.
     ///
     /// The keystore must be in the PKCS#12 format.
-    #[structopt(long, value_name = "PATH")]
+    #[clap(long, value_name = "PATH")]
     cert: Option<String>,
     /// Password for the TLS certificate keystore.
-    #[structopt(long, value_name = "PASSWORD")]
+    #[clap(long, value_name = "PASSWORD")]
     cert_password: Option<String>,
 
     // === AWS options. ===
     /// Named AWS region to target for AWS API requests.
-    #[structopt(long, default_value = "localstack")]
+    #[clap(long, default_value = "localstack")]
     aws_region: String,
     /// Custom AWS endpoint. Default: "http://localhost:4566".
-    #[structopt(long)]
+    #[clap(long)]
     aws_endpoint: Option<String>,
 
     // === Materialize options. ===
     /// materialized connection string.
-    #[structopt(long, default_value = "postgres://materialize@localhost:6875")]
+    #[clap(long, default_value = "postgres://materialize@localhost:6875")]
     materialized_url: tokio_postgres::Config,
     /// Validate the on-disk state of the materialized catalog.
-    #[structopt(long)]
+    #[clap(long)]
     validate_catalog: Option<PathBuf>,
     /// Don't reset materialized state before executing each script.
-    #[structopt(long)]
+    #[clap(long)]
     no_reset: bool,
 
     // === Testdrive options. ===
     /// Emit Buildkite-specific markup.
-    #[structopt(long)]
+    #[clap(long)]
     ci_output: bool,
 
     /// Default timeout in seconds.
-    #[structopt(long, default_value = "10")]
+    #[clap(long, default_value = "10")]
     default_timeout: f64,
 
     /// A random number to distinguish each TestDrive run.
-    #[structopt(long)]
+    #[clap(long)]
     seed: Option<u32>,
 
     /// Maximum number of errors before aborting
-    #[structopt(long, default_value = "10")]
+    #[clap(long, default_value = "10")]
     max_errors: usize,
 
     /// Max number of tests to run before terminating
-    #[structopt(long, default_value = "18446744073709551615")]
+    #[clap(long, default_value = "18446744073709551615")]
     max_tests: usize,
 
     /// Shuffle tests (using the value from --seed, if any)
-    #[structopt(long)]
+    #[clap(long)]
     shuffle_tests: bool,
 
     /// Force the use of the specfied temporary directory rather than creating one with a random name
-    #[structopt(long)]
+    #[clap(long)]
     temp_dir: Option<String>,
 
     // === Positional arguments. ===

@@ -21,7 +21,6 @@ use std::process;
 
 use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
-use structopt::StructOpt;
 use zip::ZipArchive;
 
 use mzcloud::apis::configuration::Configuration;
@@ -38,13 +37,13 @@ use mzcloud::models::patched_deployment_request::PatchedDeploymentRequest;
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
 /// Command-line interface for Materialize Cloud.
-#[derive(Debug, StructOpt)]
+#[derive(Debug, clap::Parser)]
 struct Args {
-    #[structopt(flatten)]
+    #[clap(flatten)]
     oauth: OAuthArgs,
 
     /// Materialize Cloud domain.
-    #[structopt(
+    #[clap(
         short,
         long,
         env = "MZCLOUD_DOMAIN",
@@ -55,7 +54,7 @@ struct Args {
     /// Whether to use HTTP instead of HTTPS when accessing the core API.
     ///
     /// Defaults to false unless `domain` is set to `localhost`.
-    #[structopt(long, env = "MZCLOUD_INSECURE", hidden = true)]
+    #[clap(long, env = "MZCLOUD_INSECURE", hidden = true)]
     insecure: Option<bool>,
 
     /// The domain of the admin API.
@@ -64,11 +63,11 @@ struct Args {
     /// which case it assumes the standard local development environment setup
     /// for Materialize Cloud and defaults to
     /// `admin.staging.cloud.materialize.com`.
-    #[structopt(long, env = "MZCLOUD_ADMIN_DOMAIN", hidden = true)]
+    #[clap(long, env = "MZCLOUD_ADMIN_DOMAIN", hidden = true)]
     admin_domain: Option<String>,
 
     /// Which resources to operate on.
-    #[structopt(subcommand)]
+    #[clap(subcommand)]
     category: Category,
 }
 
@@ -97,56 +96,58 @@ impl Args {
     }
 }
 
-#[derive(Debug, StructOpt, Serialize)]
+#[derive(Debug, clap::Parser, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct OAuthArgs {
     /// OAuth Client ID for authentication.
-    #[structopt(long, env = "MZCLOUD_CLIENT_ID", hide_env_values = true)]
+    #[clap(long, env = "MZCLOUD_CLIENT_ID", hide_env_values = true)]
     client_id: String,
 
     /// OAuth Secret Key for authentication.
-    #[structopt(long, env = "MZCLOUD_SECRET_KEY", hide_env_values = true)]
+    #[clap(long, env = "MZCLOUD_SECRET_KEY", hide_env_values = true)]
     secret: String,
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, clap::Parser)]
 enum Category {
     /// Manage deployments.
+    #[clap(subcommand)]
     Deployments(DeploymentsCommand),
     /// List Materialize versions.
+    #[clap(subcommand)]
     MzVersions(MzVersionsCommand),
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, clap::Parser)]
 enum DeploymentsCommand {
     /// Create a new Materialize deployment.
     Create {
         /// Name of the deployed materialized instance. Defaults to randomly assigned.
-        #[structopt(long)]
+        #[clap(long)]
         name: Option<String>,
 
         /// Size of the deployment.
-        #[structopt(short, long, parse(try_from_str = parse_size))]
+        #[clap(short, long, parse(try_from_str = parse_size))]
         size: Option<DeploymentSizeEnum>,
 
         /// The number of megabytes of storage to allocate.
-        #[structopt(long)]
+        #[clap(long)]
         storage_mb: Option<i32>,
 
         /// Disable user-created indexes (used for debugging).
-        #[structopt(long)]
+        #[clap(long)]
         disable_user_indexes: Option<bool>,
 
         /// Extra arguments to provide to materialized.
-        #[structopt(long)]
+        #[clap(long)]
         materialized_extra_args: Option<Vec<String>>,
 
         /// Version of materialized to deploy. Defaults to latest available version.
-        #[structopt(short = "v", long)]
+        #[clap(short = 'v', long)]
         mz_version: Option<String>,
 
         /// Enable Tailscale by setting the Tailscale Auth Key.
-        #[structopt(long)]
+        #[clap(long)]
         tailscale_auth_key: Option<String>,
     },
 
@@ -162,33 +163,33 @@ enum DeploymentsCommand {
         id: String,
 
         /// Name of the deployed materialized instance. Defaults to the current version.
-        #[structopt(long)]
+        #[clap(long)]
         name: Option<String>,
 
         /// Size of the deployment. Defaults to current size.
-        #[structopt(short, long, parse(try_from_str = parse_size))]
+        #[clap(short, long, parse(try_from_str = parse_size))]
         size: Option<DeploymentSizeEnum>,
 
         /// Disable user-created indexes (used for debugging).
-        #[structopt(long)]
+        #[clap(long)]
         disable_user_indexes: Option<bool>,
 
         /// Extra arguments to provide to materialized. Defaults to the
         /// currently set extra arguments.
-        #[structopt(long)]
+        #[clap(long)]
         materialized_extra_args: Option<Vec<String>>,
 
         /// Version of materialized to upgrade to. Defaults to the current
         /// version.
-        #[structopt(short = "v", long)]
+        #[clap(short = 'v', long)]
         mz_version: Option<String>,
 
         /// If Tailscale is configured, disable it and delete stored keys.
-        #[structopt(long)]
+        #[clap(long)]
         remove_tailscale: bool,
 
         /// Enable Tailscale by setting the Tailscale Auth Key.
-        #[structopt(long, conflicts_with("remove-tailscale"))]
+        #[clap(long, conflicts_with("remove-tailscale"))]
         tailscale_auth_key: Option<String>,
     },
 
@@ -206,7 +207,7 @@ enum DeploymentsCommand {
         /// ID of the deployment.
         id: String,
         /// Path to save the certs bundle to.
-        #[structopt(short, long, default_value = "mzcloud-certs.zip")]
+        #[clap(short, long, default_value = "mzcloud-certs.zip")]
         output_file: String,
     },
 
@@ -216,7 +217,7 @@ enum DeploymentsCommand {
         id: String,
 
         /// Get the logs for the previous execution, rather than the currently running one.
-        #[structopt(long)]
+        #[clap(long)]
         previous: bool,
     },
 
@@ -226,7 +227,7 @@ enum DeploymentsCommand {
         id: String,
 
         /// Get the logs for the previous execution, rather than the currently running one.
-        #[structopt(long)]
+        #[clap(long)]
         previous: bool,
     },
 
@@ -238,7 +239,7 @@ enum DeploymentsCommand {
     },
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, clap::Parser)]
 enum MzVersionsCommand {
     /// List available Materialize versions.
     List,
@@ -398,7 +399,7 @@ async fn get_oauth_token(args: &Args) -> Result<String, reqwest::Error> {
 }
 
 async fn run() -> anyhow::Result<()> {
-    let args = Args::from_args();
+    let args = ore::cli::parse_args();
 
     let access_token = get_oauth_token(&args).await?;
     let config = Configuration {

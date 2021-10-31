@@ -8,6 +8,7 @@ publish = false
 [dependencies]
 anyhow = "1.0.44"
 bytes = "1.1.0"
+clap = { git = "https://github.com/clap-rs/clap" }
 datadriven = "0.6.0"
 fallible-iterator = "0.2.0"
 ore = { path = "../ore" }
@@ -15,4 +16,3 @@ postgres = { git = "https://github.com/MaterializeInc/rust-postgres", branch = "
 postgres-protocol = { git = "https://github.com/MaterializeInc/rust-postgres", branch = "mz-0.7.2" }
 serde = { version = "1.0.130", features = ["derive"] }
 serde_json = "1.0.68"
-structopt = "0.3.25"
