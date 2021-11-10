@@ -37,6 +37,11 @@ Protobuf type "fixed32" is not supported
   FORMAT PROTOBUF MESSAGE '.Fixed64' USING SCHEMA '${testdrive.protobuf-descriptors}'
 Protobuf type "fixed64" is not supported
 
+! CREATE SOURCE bad FROM
+  KAFKA BROKER '${testdrive.kafka-addr}' TOPIC 'testdrive-messages-${testdrive.seed}'
+  FORMAT PROTOBUF MESSAGE '.Required' USING SCHEMA '${testdrive.protobuf-descriptors}'
+Required field req not supported
+
 > CREATE SOURCE protomessages FROM
   KAFKA BROKER '${testdrive.kafka-addr}' TOPIC 'testdrive-messages-${testdrive.seed}'
   FORMAT PROTOBUF MESSAGE '.Struct' USING SCHEMA '${testdrive.protobuf-descriptors}'
@@ -229,6 +234,9 @@ $ kafka-ingest topic=nested-proto format=protobuf schema=${schema} message=neste
 double  float   int32   int64   sint32   sint64         sfixed32   sfixed64   bool   string   bytes   binary  mz_offset
 ---------------------------------------------------------------------------------------------------------------------------
 1.1     2.2     -100    200     987234   129387981723   123        567        true   "hey"    "foo"   "ZERO"  1
+
+> SELECT unnest::text FROM nested_proto_inline, unnest(nested)
+(1.1,2.2,-100,200,987234,129387981723,123,567,t,hey,ZERO)
 
 > CREATE MATERIALIZED SOURCE nested_proto
   FROM KAFKA BROKER '${testdrive.kafka-addr}' TOPIC 'testdrive-nested-proto-${testdrive.seed}'

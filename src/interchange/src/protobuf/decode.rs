@@ -13,6 +13,7 @@ use anyhow::{anyhow, bail, Context};
 
 use ordered_float::OrderedFloat;
 use protobuf::descriptor::FileDescriptorSet;
+use protobuf::Message;
 use serde::de::Deserialize;
 use serde_protobuf::de::Deserializer;
 use serde_protobuf::descriptor::{Descriptors, FieldDescriptor, FieldType, MessageDescriptor};
@@ -32,37 +33,19 @@ pub struct DecodedDescriptors {
 }
 
 impl DecodedDescriptors {
-    pub fn from_descriptors(descriptors: Descriptors, message_name: String) -> Self {
-        Self {
-            descriptors,
-            message_name,
-        }
-    }
-
-    pub fn from_fds(fds: &FileDescriptorSet, message_name: String) -> Self {
-        Self::from_descriptors(Descriptors::from_proto(fds), message_name)
-    }
-
     pub fn from_bytes(bytes: &[u8], message_name: String) -> Result<Self, anyhow::Error> {
-        Ok(Self::from_fds(
-            &protobuf::Message::parse_from_bytes(bytes)
-                .context("parsing encoded protobuf descriptors failed")?,
+        let fds = FileDescriptorSet::parse_from_bytes(bytes)
+            .context("parsing encoded protobuf descriptors failed")?;
+        Ok(Self {
+            descriptors: Descriptors::from_proto(&fds),
             message_name,
-        ))
-    }
-
-    pub fn descriptors(&self) -> &Descriptors {
-        &self.descriptors
-    }
-
-    pub fn into_descriptors(self) -> Descriptors {
-        self.descriptors
+        })
     }
 
     pub fn validate(&self) -> Result<RelationDesc, anyhow::Error> {
         let proto_name = proto_message_name(&self.message_name);
         let message = self
-            .descriptors()
+            .descriptors
             .message_by_name(&proto_name)
             .ok_or_else(|| {
                 // TODO(benesch): the error message here used to include the names of

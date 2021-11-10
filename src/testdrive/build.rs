@@ -11,6 +11,7 @@ fn main() {
     protoc::Protoc::new()
         .serde(true)
         .include("src/format/protobuf")
+        .input("src/format/protobuf/bad.proto")
         .input("src/format/protobuf/no_messages.proto")
         .input("src/format/protobuf/imported.proto")
         .input("src/format/protobuf/billing.proto")
