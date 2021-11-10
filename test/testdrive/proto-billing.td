@@ -24,10 +24,10 @@ $ kafka-ingest format=protobuf topic=messages message=batch timestamp=10
 {"id": "0", "interval_start": "0", "interval_end": "0", "records": []}
 
 > SHOW COLUMNS FROM billing
-id              true text
-interval_end    true text
-interval_start  true text
-records         true list
+id              false text
+interval_end    false text
+interval_start  false text
+records         false list
 mz_offset       false bigint
 
 > SELECT id, interval_start, interval_end, mz_offset FROM billing
@@ -66,7 +66,7 @@ user
   FROM billing, unnest(records) AS r
 
 > SHOW COLUMNS FROM billing_records
-id              true  text
+id              false text
 interval_end    true  text
 interval_start  true  text
 measurements    true  list

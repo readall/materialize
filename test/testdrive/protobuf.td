@@ -78,7 +78,7 @@ $ kafka-ingest format=bytes topic=corrupted-messages timestamp=1
 garbage
 
 ! SELECT * from corrupted_proto_messages
-Decode error: Text: protobuf deserialization error: Deserializing into rust object: protobuf error
+Decode error: Text: protobuf deserialization error: protobuf error: incorrect tag
 
 > CREATE MATERIALIZED SOURCE protomessages3 FROM
   KAFKA BROKER '${testdrive.kafka-addr}' TOPIC 'testdrive-messages-${testdrive.seed}'
@@ -121,7 +121,7 @@ $ kafka-ingest topic=simple format=protobuf schema=${schema} message=simpleid pu
   FORMAT PROTOBUF USING CONFLUENT SCHEMA REGISTRY '${testdrive.schema-registry-url}'
 
 > SHOW COLUMNS FROM simple
-id         true   text
+id         false  text
 mz_offset  false  bigint
 
 > SELECT * FROM simple
@@ -243,18 +243,18 @@ double  float   int32   int64   sint32   sint64         sfixed32   sfixed64   bo
   FORMAT PROTOBUF USING CONFLUENT SCHEMA REGISTRY '${testdrive.schema-registry-url}'
 
 > SHOW COLUMNS FROM nested_proto
-double    true  "double precision"
-float     true  real
-int32     true  integer
-int64     true  bigint
-sint32    true  integer
-sint64    true  bigint
-sfixed32  true  integer
-sfixed64  true  bigint
-bool      true  boolean
-string    true  text
-bytes     true  bytea
-binary    true  text
+double    false "double precision"
+float     false real
+int32     false integer
+int64     false bigint
+sint32    false integer
+sint64    false bigint
+sfixed32  false integer
+sfixed64  false bigint
+bool      false boolean
+string    false text
+bytes     false bytea
+binary    false text
 nested    false list
 mz_offset false bigint
 
@@ -295,9 +295,9 @@ $ kafka-create-topic topic=batch_proto
 > SHOW COLUMNS FROM batch_proto
 name            nullable  type
 -------------------------------
-id              true      text
-interval_end    true      text
-interval_start  true      text
+id              false     text
+interval_end    false     text
+interval_start  false     text
 mz_offset       false     bigint
 records         false     list
 
