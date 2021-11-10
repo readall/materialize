@@ -496,10 +496,10 @@ impl DataEncoding {
                 descriptors,
                 message_name,
             }) => protobuf::DecodedDescriptors::from_bytes(descriptors, message_name.into())?
-                .validate()?
-                .into_iter()
+                .columns()
+                .iter()
                 .fold(key_desc, |desc, (name, ty)| {
-                    desc.with_named_column(name.unwrap(), ty)
+                    desc.with_named_column(name, ty.clone())
                 }),
             DataEncoding::Regex(RegexEncoding { regex }) => regex
                 .capture_names()
