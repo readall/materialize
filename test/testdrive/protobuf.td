@@ -243,20 +243,20 @@ double  float   int32   int64   sint32   sint64         sfixed32   sfixed64   bo
   FORMAT PROTOBUF USING CONFLUENT SCHEMA REGISTRY '${testdrive.schema-registry-url}'
 
 > SHOW COLUMNS FROM nested_proto
-double    true "double precision"
-float     true real
-int32     true integer
-int64     true bigint
-sint32    true integer
-sint64    true bigint
-sfixed32  true integer
-sfixed64  true bigint
-bool      true boolean
-string    true text
-bytes     true bytea
-binary    true text
-nested    true list
-mz_offset false  bigint
+double    true  "double precision"
+float     true  real
+int32     true  integer
+int64     true  bigint
+sint32    true  integer
+sint64    true  bigint
+sfixed32  true  integer
+sfixed64  true  bigint
+bool      true  boolean
+string    true  text
+bytes     true  bytea
+binary    true  text
+nested    false list
+mz_offset false bigint
 
 > SELECT COUNT(*) FROM nested_proto
 1
@@ -299,7 +299,7 @@ id              true      text
 interval_end    true      text
 interval_start  true      text
 mz_offset       false     bigint
-records         true      list
+records         false     list
 
 $ kafka-ingest format=protobuf topic=batch_proto message=batch timestamp=1
 {"id": "1", "interval_start": "2020-01-01_00:00:00", "interval_end": "2020-01-01_00:00:09", "records": []}
