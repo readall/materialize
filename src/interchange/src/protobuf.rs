@@ -138,6 +138,64 @@ impl Decoder {
     }
 }
 
+fn derive_column_type<'a>(
+    seen_messages: &mut HashSet<&'a str>,
+    field: &'a FieldDescriptor,
+    descriptors: &'a Descriptors,
+) -> Result<ColumnType, anyhow::Error> {
+    let scalar_type = match field.field_type(descriptors) {
+        FieldType::Bool => ScalarType::Bool,
+        FieldType::Int32 | FieldType::SInt32 | FieldType::SFixed32 => ScalarType::Int32,
+        FieldType::Int64 | FieldType::SInt64 | FieldType::SFixed64 => ScalarType::Int64,
+        FieldType::Enum(_) => ScalarType::String,
+        FieldType::Float => ScalarType::Float32,
+        FieldType::Double => ScalarType::Float64,
+        FieldType::UInt32 => bail!("Protobuf type \"uint32\" is not supported"),
+        FieldType::UInt64 => bail!("Protobuf type \"uint64\" is not supported"),
+        FieldType::Fixed32 => bail!("Protobuf type \"fixed32\" is not supported"),
+        FieldType::Fixed64 => bail!("Protobuf type \"fixed64\" is not supported"),
+        FieldType::String => ScalarType::String,
+        FieldType::Bytes => ScalarType::Bytes,
+        FieldType::Message(m) => {
+            if seen_messages.contains(m.name()) {
+                bail!("Recursive types are not supported: {}", m.name());
+            }
+            seen_messages.insert(m.name());
+            let mut fields = Vec::with_capacity(m.fields().len());
+            for field in m.fields() {
+                let column_name = ColumnName::from(field.name());
+                let column_type = derive_column_type(seen_messages, field, descriptors)?;
+                fields.push((column_name, column_type))
+            }
+            seen_messages.remove(m.name());
+            ScalarType::Record {
+                fields,
+                custom_oid: None,
+                custom_name: None,
+            }
+        }
+        FieldType::Group => bail!("Unions are currently not supported"),
+        FieldType::UnresolvedMessage(m) => bail!("Unresolved message {} not supported", m),
+        FieldType::UnresolvedEnum(e) => bail!("Unresolved enum {} not supported", e),
+    };
+
+    match field.field_label() {
+        FieldLabel::Required => bail!("Required field {} not supported", field.name()),
+        FieldLabel::Repeated => Ok(ColumnType {
+            nullable: false,
+            scalar_type: ScalarType::List {
+                element_type: Box::new(scalar_type),
+                custom_oid: None,
+            },
+        }),
+        FieldLabel::Optional => Ok(ColumnType {
+            nullable: field.default_value().is_none(),
+            scalar_type,
+        }),
+    }
+}
+
+
 /// Convert an arbitrary [`SerdeValue`] into a [`Datum`], possibly creating a jsonb value
 ///
 /// Top-level values are converted to equivalent Datums, but in the case of a nested
@@ -403,61 +461,4 @@ fn datum_from_serde_proto_nested<'a>(val: &'a ProtoValue) -> Result<Datum<'a>, a
         bail!("Nested bytes are not supported");
     }
     datum_from_serde_proto(val)
-}
-
-fn derive_column_type<'a>(
-    seen_messages: &mut HashSet<&'a str>,
-    field: &'a FieldDescriptor,
-    descriptors: &'a Descriptors,
-) -> Result<ColumnType, anyhow::Error> {
-    let scalar_type = match field.field_type(descriptors) {
-        FieldType::Bool => ScalarType::Bool,
-        FieldType::Int32 | FieldType::SInt32 | FieldType::SFixed32 => ScalarType::Int32,
-        FieldType::Int64 | FieldType::SInt64 | FieldType::SFixed64 => ScalarType::Int64,
-        FieldType::Enum(_) => ScalarType::String,
-        FieldType::Float => ScalarType::Float32,
-        FieldType::Double => ScalarType::Float64,
-        FieldType::UInt32 => bail!("Protobuf type \"uint32\" is not supported"),
-        FieldType::UInt64 => bail!("Protobuf type \"uint64\" is not supported"),
-        FieldType::Fixed32 => bail!("Protobuf type \"fixed32\" is not supported"),
-        FieldType::Fixed64 => bail!("Protobuf type \"fixed64\" is not supported"),
-        FieldType::String => ScalarType::String,
-        FieldType::Bytes => ScalarType::Bytes,
-        FieldType::Message(m) => {
-            if seen_messages.contains(m.name()) {
-                bail!("Recursive types are not supported: {}", m.name());
-            }
-            seen_messages.insert(m.name());
-            let mut fields = Vec::with_capacity(m.fields().len());
-            for field in m.fields() {
-                let column_name = ColumnName::from(field.name());
-                let column_type = derive_column_type(seen_messages, field, descriptors)?;
-                fields.push((column_name, column_type))
-            }
-            seen_messages.remove(m.name());
-            ScalarType::Record {
-                fields,
-                custom_oid: None,
-                custom_name: None,
-            }
-        }
-        FieldType::Group => bail!("Unions are currently not supported"),
-        FieldType::UnresolvedMessage(m) => bail!("Unresolved message {} not supported", m),
-        FieldType::UnresolvedEnum(e) => bail!("Unresolved enum {} not supported", e),
-    };
-
-    match field.field_label() {
-        FieldLabel::Required => bail!("Required field {} not supported", field.name()),
-        FieldLabel::Repeated => Ok(ColumnType {
-            nullable: false,
-            scalar_type: ScalarType::List {
-                element_type: Box::new(scalar_type),
-                custom_oid: None,
-            },
-        }),
-        FieldLabel::Optional => Ok(ColumnType {
-            nullable: field.default_value().is_none(),
-            scalar_type,
-        }),
-    }
 }
